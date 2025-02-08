@@ -4,4 +4,3 @@ app = Flask(__name__)
 
 from app import routes
 from app import dumpdb
-from app import services
