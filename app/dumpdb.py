@@ -10,6 +10,13 @@ load_dotenv()
 TOKEN = os.getenv("TOKEN")
 BASE_URL = os.getenv("BASE_URL")
 
+
+# List of valid servers
+valid_servers = [
+    "fe", "bo", "jl", "staging", "3l", "test", "develop", "qa", "iit", "asset", 
+    "avenger", "kanban", "staging-sprague", "demo", "uat"
+] 
+
 @app.route("/test", methods=["POST"])
 def test_route():
     
@@ -24,6 +31,12 @@ def test_route():
         job_name, server = text.split()
     except ValueError:
         return jsonify({"response_type": "ephemeral", "text": "Please provide both job name and server in the format: `job_name server`"}), 400
+    
+
+    # Check if the server is in the valid list of servers
+    if server not in valid_servers:
+        return jsonify({"response_type": "ephemeral", "text": f"Invalid server name. Please choose from the following: {', '.join(valid_servers)}"}), 400
+
 
     # Construct Jenkins job URL
     jenkins_url = f"{BASE_URL}/{job_name}/buildWithParameters?token={TOKEN}&DESTINATION_APP=fp-{server}"
@@ -32,7 +45,7 @@ def test_route():
     
     try:
         # Trigger Jenkins job
-        response = requests.post(jenkins_url, timeout=10)
+        response = requests.post(jenkins_url, timeout=30)
         
         if response.status_code == 201:
             return jsonify({"response_type": "in_channel", "text": f"Jenkins job '{job_name}' for server '{server}' triggered successfully by {user}!"}), 201
