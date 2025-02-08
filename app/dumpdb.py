@@ -33,13 +33,22 @@ def test_route():
         return jsonify({"response_type": "ephemeral", "text": "Please provide both job name and server in the format: `job_name server`"}), 400
     
 
+     # Update job_name based on specific conditions
+    if job_name == "db":
+        job_name = "UpdateDatabaseFromProduction"
+    elif job_name == "sdb":
+        job_name = "UpdateDatabaseFromSpragueProd"
+    elif job_name == "Aut":
+        job_name = "e2e"
+
+
     # Check if the server is in the valid list of servers
     if server not in valid_servers:
         return jsonify({"response_type": "ephemeral", "text": f"Invalid server name. Please choose from the following: {', '.join(valid_servers)}"}), 400
 
 
     # Construct Jenkins job URL
-    jenkins_url = f"{BASE_URL}/{job_name}/buildWithParameters?token={TOKEN}&DESTINATION_APP=fp-{server}"
+    jenkins_url = f"{BASE_URL}token={TOKEN}&job={job_name}&DESTINATION_APP=fp-{server}"
 
     print(f"{user} triggered Jenkins job: {jenkins_url}")
     
