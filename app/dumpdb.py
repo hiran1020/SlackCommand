@@ -1,7 +1,14 @@
 from app import app
-from app.services import BASE_URL, TOKEN
 from flask import jsonify, request
 import requests
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+# Constants from .env file
+TOKEN = os.getenv("TOKEN")
+BASE_URL = os.getenv("BASE_URL")
 
 @app.route("/test", methods=["POST"])
 def test_route():
