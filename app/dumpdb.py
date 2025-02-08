@@ -6,9 +6,19 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
 # Constants from .env file
 TOKEN = os.getenv("TOKEN")
+
+
+# Set BASE_URL dynamically
+os.environ["BASE_URL"] = "http://34.224.215.229:8080/buildByToken/buildWithParameters?"
+
+# Retrieve it to verify
 BASE_URL = os.getenv("BASE_URL")
+print(f"Updated BASE_URL: {BASE_URL}")
+print("----------------------------------",BASE_URL)
+
 
 
 # List of valid servers
@@ -50,11 +60,13 @@ def test_route():
     # Construct Jenkins job URL
     jenkins_url = f"{BASE_URL}token={TOKEN}&job={job_name}&DESTINATION_APP=fp-{server}"
 
+    print(jenkins_url)
+
     print(f"{user} triggered Jenkins job: {jenkins_url}")
     
     try:
         # Trigger Jenkins job
-        response = requests.post(jenkins_url, timeout=30)
+        response = requests.get(jenkins_url, timeout=30)
         
         if response.status_code == 201:
             return jsonify({"response_type": "in_channel", "text": f"Jenkins job '{job_name}' for server '{server}' triggered successfully by {user}!"}), 201
