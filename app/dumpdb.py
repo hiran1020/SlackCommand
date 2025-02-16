@@ -1,7 +1,8 @@
+import os
+import time
+import requests
 from threading import Thread
 from flask import Flask, jsonify, request
-import requests
-import os
 
 app = Flask(__name__)
 
@@ -9,9 +10,9 @@ app = Flask(__name__)
 TOKEN = os.getenv("TOKEN")
 STGTOKEN = os.getenv("STGTOKEN")
 SPRTOKEN = os.getenv("SPRTOKEN")
-BASE_URL = os.getenv("BASE_URL", "http://34.224.215.229:8080/buildByToken/buildWithParameters?")
-
-print("token",TOKEN)
+BASE_URL = os.getenv("BASE_URL")
+print(BASE_URL)
+print(TOKEN)
 print(STGTOKEN)
 print(SPRTOKEN)
 
@@ -30,25 +31,34 @@ TOKEN_MAPPINGS = {
     "UpdateDatabaseFromSpragueProd": SPRTOKEN,  # Use SPRTOKEN for Sprague
 }
 
+
 def trigger_jenkins(job_name, server, user):
-    """Background function to trigger Jenkins job with appropriate token."""
-    # Select correct token based on job name
+    """Trigger Jenkins job asynchronously and log response time."""
     token = TOKEN_MAPPINGS.get(job_name, TOKEN)
-
     jenkins_url = f"{BASE_URL}token={token}&job={job_name}&DESTINATION_APP=fp-{server}"
-    print(f"🔗 Triggering Jenkins job: {job_name} | Server: {server} | Token: {token[:5]}****")
 
+    print(f"🔗 Triggering: {jenkins_url}")
+
+    start_time = time.time()
     try:
         response = requests.get(jenkins_url, timeout=30)
         response.raise_for_status()
-        print(f"✅ {user} triggered Jenkins job: {job_name} on {server}")
+        duration = round(time.time() - start_time, 2)
+        print(f"✅ {user} triggered `{job_name}` on `{server}` (Time: {duration}s)")
     except requests.exceptions.RequestException as e:
-        print(f"❌ Error triggering Jenkins job: {e}")
+        print(f"❌ Jenkins error: {e}")
 
+
+@app.route("/test", methods=["POST"])
 @app.route("/test", methods=["POST"])
 def test_route():
     """Slack command handler"""
-    data = request.form
+    data = request.json or request.form  # Handle both JSON & form data
+
+    # ✅ Handle Slack URL verification
+    if "challenge" in data:
+        return jsonify({"challenge": data["challenge"]})  # Respond to Slack's verification
+
     text = data.get("text", "").strip()
     user = data.get("user_name", "Unknown User")
 
@@ -66,10 +76,8 @@ def test_route():
     if server not in VALID_SERVERS:
         return jsonify({"response_type": "ephemeral", "text": f"❌ *Error:* Invalid server `{server}`. Valid servers: `{', '.join(VALID_SERVERS)}`"}), 400
 
-    # ✅ Return response immediately to Slack
-    response = {"response_type": "in_channel", "text": f"⏳ *Processing:* Jenkins job `{job_name}` on `{server}` triggered by *{user}*..."}
-    
-    # ✅ Trigger Jenkins in the background
+    # ✅ Log and return response ASAP
+    print(f"⚡ Received command: {user} → `{job_name}` on `{server}`")
     Thread(target=trigger_jenkins, args=(job_name, server, user), daemon=True).start()
 
-    return jsonify(response), 200
+    return jsonify({"response_type": "in_channel", "text": f"⏳ Processing `{job_name}` on `{server}`..."}), 200
