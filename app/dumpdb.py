@@ -11,6 +11,10 @@ STGTOKEN = os.getenv("STGTOKEN")
 SPRTOKEN = os.getenv("SPRTOKEN")
 BASE_URL = os.getenv("BASE_URL", "http://34.224.215.229:8080/buildByToken/buildWithParameters?")
 
+print("token",TOKEN)
+print(STGTOKEN)
+print(SPRTOKEN)
+
 VALID_SERVERS = {"fe", "bo", "jl", "staging", "3l", "test", "develop", "qa", "iit", "asset",
                  "avenger", "kanban", "staging-sprague", "demo", "uat"}
 
@@ -62,10 +66,10 @@ def test_route():
     if server not in VALID_SERVERS:
         return jsonify({"response_type": "ephemeral", "text": f"❌ *Error:* Invalid server `{server}`. Valid servers: `{', '.join(VALID_SERVERS)}`"}), 400
 
-    # Respond immediately to Slack
-    Thread(target=trigger_jenkins, args=(job_name, server, user)).start()
+    # ✅ Return response immediately to Slack
+    response = {"response_type": "in_channel", "text": f"⏳ *Processing:* Jenkins job `{job_name}` on `{server}` triggered by *{user}*..."}
     
-    return jsonify({"response_type": "in_channel", "text": f"⏳ *Processing:* Jenkins job `{job_name}` on `{server}` triggered by *{user}*..."}), 200
+    # ✅ Trigger Jenkins in the background
+    Thread(target=trigger_jenkins, args=(job_name, server, user), daemon=True).start()
 
-if __name__ == "__main__":
-    app.run(port=5000)
+    return jsonify(response), 200
