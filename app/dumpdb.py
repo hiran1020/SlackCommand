@@ -69,29 +69,23 @@ def test_route():
     user = data.get("user_name", "Unknown User")
 
     if not text:
-        app.logger.error("❌ *Error:* No text provided in the request.")
         return jsonify({"response_type": "ephemeral", "text": "❌ *Error:* Provide `job_name server`."}), 400
 
     try:
         job_name, server = text.split()
     except ValueError:
-        app.logger.error("❌ *Error:* Invalid format in the request.")
         return jsonify({"response_type": "ephemeral", "text": "❌ *Error:* Invalid format. Use `/command job_name server`"}), 400
 
     job_name = JOB_MAPPINGS.get(job_name.lower(), job_name)
     server = server.lower()
 
     if server not in VALID_SERVERS:
-        app.logger.error(f"❌ *Error:* Invalid server `{server}`.")
         return jsonify({"response_type": "ephemeral", "text": f"❌ *Error:* Invalid server `{server}`. Valid servers: `{', '.join(VALID_SERVERS)}`"}), 400
 
-    # ✅ Respond immediately to Slack
+    # Return a response immediately to Slack
     response = {"response_type": "in_channel", "text": f"⏳ *Processing:* Jenkins job `{job_name}` on `{server}` triggered by *{user}*..."}
     
-    # ✅ Trigger Jenkins job in the background
+    # Trigger Jenkins in the background
     Thread(target=trigger_jenkins, args=(job_name, server, user), daemon=True).start()
 
-    # Log response time
-    app.logger.debug(f"Sent immediate response to Slack for user {user}. Job {job_name} on {server} triggered.")
-    
     return jsonify(response), 200
