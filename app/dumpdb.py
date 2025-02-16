@@ -85,16 +85,13 @@ def test_route():
         app.logger.error(f"❌ *Error:* Invalid server `{server}`.")
         return jsonify({"response_type": "ephemeral", "text": f"❌ *Error:* Invalid server `{server}`. Valid servers: `{', '.join(VALID_SERVERS)}`"}), 400
 
-    # Log when the background thread is triggered
-    app.logger.debug(f"Triggering Jenkins job in the background for job {job_name} and server {server} by user {user}")
-
     # ✅ Respond immediately to Slack
     response = {"response_type": "in_channel", "text": f"⏳ *Processing:* Jenkins job `{job_name}` on `{server}` triggered by *{user}*..."}
     
     # ✅ Trigger Jenkins job in the background
     Thread(target=trigger_jenkins, args=(job_name, server, user), daemon=True).start()
 
+    # Log response time
+    app.logger.debug(f"Sent immediate response to Slack for user {user}. Job {job_name} on {server} triggered.")
+    
     return jsonify(response), 200
-
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)
