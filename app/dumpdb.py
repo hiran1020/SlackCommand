@@ -50,7 +50,6 @@ def trigger_jenkins(job_name, server, user):
 
 
 @app.route("/test", methods=["POST"])
-@app.route("/test", methods=["POST"])
 def test_route():
     """Slack command handler"""
     data = request.json or request.form  # Handle both JSON & form data
