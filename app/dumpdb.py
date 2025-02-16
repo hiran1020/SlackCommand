@@ -64,26 +64,37 @@ def trigger_jenkins(job_name, server, user):
 @app.route("/test", methods=["POST"])
 def test_route():
     """Slack command handler"""
+    
+    # Log incoming request data from Slack
     data = request.form
+    app.logger.debug(f"Incoming request data from Slack: {data}")
+    
     text = data.get("text", "").strip()
     user = data.get("user_name", "Unknown User")
 
     if not text:
-        return jsonify({"response_type": "ephemeral", "text": "❌ *Error:* Provide `job_name server`."}), 400
+        response = {"response_type": "ephemeral", "text": "❌ *Error:* Provide `job_name server`."}
+        app.logger.debug(f"Response sent to Slack: {response}")
+        return jsonify(response), 400
 
     try:
         job_name, server = text.split()
     except ValueError:
-        return jsonify({"response_type": "ephemeral", "text": "❌ *Error:* Invalid format. Use `/command job_name server`"}), 400
+        response = {"response_type": "ephemeral", "text": "❌ *Error:* Invalid format. Use `/command job_name server`"}
+        app.logger.debug(f"Response sent to Slack: {response}")
+        return jsonify(response), 400
 
     job_name = JOB_MAPPINGS.get(job_name.lower(), job_name)
     server = server.lower()
 
     if server not in VALID_SERVERS:
-        return jsonify({"response_type": "ephemeral", "text": f"❌ *Error:* Invalid server `{server}`. Valid servers: `{', '.join(VALID_SERVERS)}`"}), 400
+        response = {"response_type": "ephemeral", "text": f"❌ *Error:* Invalid server `{server}`. Valid servers: `{', '.join(VALID_SERVERS)}`"}
+        app.logger.debug(f"Response sent to Slack: {response}")
+        return jsonify(response), 400
 
-    # Return a response immediately to Slack
+    # Log the response data sent to Slack
     response = {"response_type": "in_channel", "text": f"⏳ *Processing:* Jenkins job `{job_name}` on `{server}` triggered by *{user}*..."}
+    app.logger.debug(f"Response sent to Slack: {response}")
     
     # Trigger Jenkins in the background
     Thread(target=trigger_jenkins, args=(job_name, server, user), daemon=True).start()
