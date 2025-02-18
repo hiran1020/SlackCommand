@@ -29,22 +29,6 @@ JOB_MAPPINGS = {
     "stagingdb": "UpdateDatabaseFromStaging"
 }
 
-def trigger_jenkins(job_name, server, user):
-    """Triggers the Jenkins job in a background thread to avoid blocking Slack's response."""
-    jenkins_url = f"{BASE_URL}token={TOKEN}&job={job_name}&DESTINATION_APP=fp-{server}"
-    
-    try:
-        logging.info(f"🔹 {user} triggered Jenkins job: {jenkins_url}")
-        response = requests.get(jenkins_url, timeout=10)
-
-        if response.status_code == 201:
-            logging.info(f"✅ Jenkins job '{job_name}' on '{server}' started successfully by {user}.")
-        else:
-            logging.error(f"❌ Failed to trigger Jenkins job. Status: {response.status_code}, Response: {response.text}")
-
-    except requests.exceptions.RequestException as e:
-        logging.error(f"❌ Error triggering Jenkins job: {e}")
-
 @app.route("/hy-run", methods=["POST"])
 def hy_run():
     """Handles Slack command to trigger Jenkins."""
