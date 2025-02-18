@@ -1,53 +1,54 @@
-import logging
-import os
+from app import app
+from flask import jsonify, request
 import requests
+import os
+import logging
 from threading import Thread
-from flask import Flask, jsonify, request
-import time
+from dotenv import load_dotenv
 
-# Initialize Flask application
-app = Flask(__name__)
+# Load environment variables from .env file
+load_dotenv()
 
-# Enable logging
-logging.basicConfig(level=logging.DEBUG)
-app.logger.setLevel(logging.DEBUG)
-
-# Load environment variables
+# Constants from .env file
 TOKEN = os.getenv("TOKEN")
-STGTOKEN = os.getenv("STGTOKEN")
-SPRTOKEN = os.getenv("SPRTOKEN")
-BASE_URL = os.getenv("BASE_URL")
+BASE_URL = os.getenv("BASE_URL", "http://34.224.215.229:8080/buildByToken/buildWithParameters?")
 
-# Verify base URL and tokens are loaded correctly
-app.logger.debug(f"BASE_URL: {BASE_URL}")
-app.logger.debug(f"TOKEN: {TOKEN}****")
-app.logger.debug(f"STGTOKEN: {STGTOKEN}****")
-app.logger.debug(f"SPRTOKEN: {SPRTOKEN}****")
+# Logging setup
+logging.basicConfig(level=logging.DEBUG)
 
-# Valid server list
-VALID_SERVERS = {"fe", "bo", "jl", "staging", "3l", "test", "develop", "qa", "iit", "asset",
-                 "avenger", "kanban", "staging-sprague", "demo", "uat"}
+# List of valid servers
+VALID_SERVERS = {
+    "fe", "bo", "jl", "staging", "3l", "test", "develop", "qa", "iit", "asset", 
+    "avenger", "kanban", "staging-sprague", "demo", "uat"
+} 
 
-# Job mappings
+# Job name mappings
 JOB_MAPPINGS = {
     "db": "UpdateDatabaseFromProduction",
     "sdb": "UpdateDatabaseFromSpragueProd",
     "stagingdb": "UpdateDatabaseFromStaging"
 }
 
-# Token mappings based on the job
-TOKEN_MAPPINGS = {
-    "UpdateDatabaseFromStaging": STGTOKEN,  # Use STGTOKEN for staging
-    "UpdateDatabaseFromSpragueProd": SPRTOKEN,  # Use SPRTOKEN for Sprague
-}
+def trigger_jenkins(job_name, server, user):
+    """Triggers the Jenkins job in a background thread to avoid blocking Slack's response."""
+    jenkins_url = f"{BASE_URL}token={TOKEN}&job={job_name}&DESTINATION_APP=fp-{server}"
+    
+    try:
+        logging.info(f"🔹 {user} triggered Jenkins job: {jenkins_url}")
+        response = requests.get(jenkins_url, timeout=10)
 
+        if response.status_code == 201:
+            logging.info(f"✅ Jenkins job '{job_name}' on '{server}' started successfully by {user}.")
+        else:
+            logging.error(f"❌ Failed to trigger Jenkins job. Status: {response.status_code}, Response: {response.text}")
 
+    except requests.exceptions.RequestException as e:
+        logging.error(f"❌ Error triggering Jenkins job: {e}")
 
-        
 @app.route("/hy-run", methods=["POST"])
 def hy_run():
-    """Handle /hy-run Slack command"""
-    app.logger.debug(f"📩 Received Slack request: {request.form}")
+    """Handles Slack command to trigger Jenkins."""
+    logging.debug(f"📩 Slack request received: {request.form}")
 
     data = request.form
     text = data.get("text", "").strip()
@@ -59,7 +60,7 @@ def hy_run():
     try:
         job_name, server = text.split()
     except ValueError:
-        return jsonify({"response_type": "ephemeral", "text": "❌ *Error:* Invalid format. Use `/hy-run job_name server`"}), 200
+        return jsonify({"response_type": "ephemeral", "text": "❌ *Error:* Invalid format. Use `/trigger job_name server`"}), 200
 
     job_name = JOB_MAPPINGS.get(job_name.lower(), job_name)
     server = server.lower()
@@ -67,15 +68,16 @@ def hy_run():
     if server not in VALID_SERVERS:
         return jsonify({"response_type": "ephemeral", "text": f"❌ *Error:* Invalid server `{server}`."}), 200
 
-    #    """Trigger Jenkins job asynchronously and log response time."""
-    token = TOKEN_MAPPINGS.get(job_name, TOKEN)
-    jenkins_url = f"{BASE_URL}token={token}&job={job_name}&DESTINATION_APP=fp-{server}"
-    print("jenkins url:",jenkins_url)
-    # Respond quickly to Slack
-    response = {
-        "response_type": "in_channel",
-        "text": f"⏳ *Processing:* Jenkins job `{job_name}` on `{server}` triggered by *{user}*..."
-    }
-    
+    # Construct Jenkins job URL
+    jenkins_url = f"{BASE_URL}token={TOKEN}&job={job_name}&DESTINATION_APP=fp-{server}"
+    logging.info(f"🔹 Triggering Jenkins job: {jenkins_url}")
 
-    return jsonify(response), 200  # <-- Immediate response
+    try:
+        response = requests.get(jenkins_url, timeout=10)
+        if response.status_code == 201:
+            return jsonify({"response_type": "in_channel", "text": f"✅ Jenkins job `{job_name}` triggered for `{server}` by *{user}*."}), 200
+        else:
+            return jsonify({"response_type": "ephemeral", "text": f"❌ Failed to trigger job. Status: {response.status_code}."}), 200
+    except requests.exceptions.RequestException as e:
+        logging.error(f"❌ Jenkins trigger failed: {e}")
+        return jsonify({"response_type": "ephemeral", "text": f"❌ Error: {str(e)}"}), 200
