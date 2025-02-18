@@ -1,6 +1,10 @@
 import json
 import requests
 import os
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 def lambda_handler(event, context):
     # Extract data from the event
@@ -38,8 +42,8 @@ def lambda_handler(event, context):
         }
 
     # Jenkins Configuration
-    BASE_URL = "http://34.224.215.229:8080/buildByToken/buildWithParameters?"
-    TOKEN = "your-jenkins-token"
+    BASE_URL = os.environ.get("JENKINS_BASE_URL", "http://34.224.215.229:8080/buildByToken/buildWithParameters?")
+    TOKEN = os.environ.get("JENKINS_TOKEN", "your-jenkins-token")
     jenkins_url = f"{BASE_URL}token={TOKEN}&job={job_name}&DESTINATION_APP=fp-{server}"
 
     # Trigger Jenkins Job
@@ -51,11 +55,13 @@ def lambda_handler(event, context):
                 "body": json.dumps({"response_type": "in_channel", "text": f"Jenkins job '{job_name}' for server '{server}' triggered successfully by {user}!"})
             }
         else:
+            logger.error(f"Failed to trigger Jenkins job. Status code: {response.status_code}")
             return {
                 "statusCode": response.status_code,
                 "body": json.dumps({"response_type": "ephemeral", "text": f"Failed to trigger Jenkins job. Status code: {response.status_code}"})
             }
     except requests.exceptions.RequestException as e:
+        logger.error(f"Error triggering Jenkins job: {str(e)}")
         return {
             "statusCode": 500,
             "body": json.dumps({"response_type": "ephemeral", "text": f"Error triggering Jenkins job: {str(e)}"})

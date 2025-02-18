@@ -20,9 +20,9 @@ BASE_URL = os.getenv("BASE_URL")
 
 # Verify base URL and tokens are loaded correctly
 app.logger.debug(f"BASE_URL: {BASE_URL}")
-app.logger.debug(f"TOKEN: {TOKEN[:5]}****")
-app.logger.debug(f"STGTOKEN: {STGTOKEN[:5]}****")
-app.logger.debug(f"SPRTOKEN: {SPRTOKEN[:5]}****")
+app.logger.debug(f"TOKEN: {TOKEN}****")
+app.logger.debug(f"STGTOKEN: {STGTOKEN}****")
+app.logger.debug(f"SPRTOKEN: {SPRTOKEN}****")
 
 # Valid server list
 VALID_SERVERS = {"fe", "bo", "jl", "staging", "3l", "test", "develop", "qa", "iit", "asset",
@@ -62,9 +62,9 @@ def trigger_jenkins(job_name, server, user):
         app.logger.error(f"❌ Jenkins error: {e}")
 
         
-@app.route("/test", methods=["POST"])
-def test_route():
-    """Slack command handler"""
+@app.route("/hy-run", methods=["POST"])
+def hy_run():
+    """Handle /hy-run Slack command"""
     app.logger.debug(f"📩 Received Slack request: {request.form}")
 
     data = request.form
@@ -79,7 +79,7 @@ def test_route():
         job_name, server = text.split()
     except ValueError:
         app.logger.warning("❌ Invalid command format!")
-        return jsonify({"response_type": "ephemeral", "text": "❌ *Error:* Invalid format. Use `/command job_name server`"}), 400
+        return jsonify({"response_type": "ephemeral", "text": "❌ *Error:* Invalid format. Use `/hy-run job_name server`"}), 400
 
     job_name = JOB_MAPPINGS.get(job_name.lower(), job_name)
     server = server.lower()
