@@ -41,25 +41,7 @@ TOKEN_MAPPINGS = {
     "UpdateDatabaseFromSpragueProd": SPRTOKEN,  # Use SPRTOKEN for Sprague
 }
 
-def trigger_jenkins(job_name, server, user):
-    """Trigger Jenkins job asynchronously and log response time."""
-    token = TOKEN_MAPPINGS.get(job_name, TOKEN)
-    jenkins_url = f"{BASE_URL}token={token}&job={job_name}&DESTINATION_APP=fp-{server}"
-    
-    # Log request start
-    app.logger.debug(f"🔗 Triggering Jenkins job {job_name} on {server} with token {token[:5]}...")
 
-    start_time = time.time()
-    try:
-        response = requests.get(jenkins_url, timeout=30)
-        response.raise_for_status()
-        duration = round(time.time() - start_time, 2)
-        
-        # Log successful job triggering
-        app.logger.debug(f"✅ Jenkins job triggered successfully in {duration}s")
-    except requests.exceptions.RequestException as e:
-        # Log the error if the request fails
-        app.logger.error(f"❌ Jenkins error: {e}")
 
         
 @app.route("/hy-run", methods=["POST"])
@@ -85,13 +67,15 @@ def hy_run():
     if server not in VALID_SERVERS:
         return jsonify({"response_type": "ephemeral", "text": f"❌ *Error:* Invalid server `{server}`."}), 200
 
+    #    """Trigger Jenkins job asynchronously and log response time."""
+    token = TOKEN_MAPPINGS.get(job_name, TOKEN)
+    jenkins_url = f"{BASE_URL}token={token}&job={job_name}&DESTINATION_APP=fp-{server}"
+    print("jenkins url:",jenkins_url)
     # Respond quickly to Slack
     response = {
         "response_type": "in_channel",
         "text": f"⏳ *Processing:* Jenkins job `{job_name}` on `{server}` triggered by *{user}*..."
     }
     
-    # Run the Jenkins job asynchronously
-    Thread(target=trigger_jenkins, args=(job_name, server, user), daemon=True).start()
 
     return jsonify(response), 200  # <-- Immediate response
