@@ -72,30 +72,26 @@ def hy_run():
     user = data.get("user_name", "Unknown User")
 
     if not text:
-        app.logger.warning("❌ Missing command text in Slack request!")
-        return jsonify({"response_type": "ephemeral", "text": "❌ *Error:* Provide `job_name server`."}), 400
+        return jsonify({"response_type": "ephemeral", "text": "❌ *Error:* Provide `job_name server`."}), 200
 
     try:
         job_name, server = text.split()
     except ValueError:
-        app.logger.warning("❌ Invalid command format!")
-        return jsonify({"response_type": "ephemeral", "text": "❌ *Error:* Invalid format. Use `/hy-run job_name server`"}), 400
+        return jsonify({"response_type": "ephemeral", "text": "❌ *Error:* Invalid format. Use `/hy-run job_name server`"}), 200
 
     job_name = JOB_MAPPINGS.get(job_name.lower(), job_name)
     server = server.lower()
 
     if server not in VALID_SERVERS:
-        app.logger.warning(f"❌ Invalid server: {server}")
-        return jsonify({"response_type": "ephemeral", "text": f"❌ *Error:* Invalid server `{server}`."}), 400
+        return jsonify({"response_type": "ephemeral", "text": f"❌ *Error:* Invalid server `{server}`."}), 200
 
+    # Respond quickly to Slack
     response = {
         "response_type": "in_channel",
         "text": f"⏳ *Processing:* Jenkins job `{job_name}` on `{server}` triggered by *{user}*..."
     }
-
-    app.logger.info(f"✅ Sending response to Slack: {response}")
-
-    # Run job asynchronously
+    
+    # Run the Jenkins job asynchronously
     Thread(target=trigger_jenkins, args=(job_name, server, user), daemon=True).start()
 
-    return jsonify(response), 200
+    return jsonify(response), 200  # <-- Immediate response
