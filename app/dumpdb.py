@@ -1,16 +1,19 @@
-from app import app
-from flask import jsonify, request
+from flask import Blueprint, jsonify, request
+import logging
 import requests
 import os
-import logging
-from threading import Thread
 from dotenv import load_dotenv
+
+# Initialize blueprint
+dumpdb = Blueprint('dumpdb', __name__)
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Constants from .env file
 TOKEN = os.getenv("TOKEN")
+STGTOKEN = os.getenv("STGTOKEN")
+SPRTOKEN = os.getenv("SPRTOKEN")
 BASE_URL = os.getenv("BASE_URL", "http://34.224.215.229:8080/buildByToken/buildWithParameters?")
 
 # Logging setup
@@ -29,7 +32,12 @@ JOB_MAPPINGS = {
     "stagingdb": "UpdateDatabaseFromStaging"
 }
 
-@app.route("/hy-run", methods=["POST"])
+TOKEN_MAPPINGS = {
+    "UpdateDatabaseFromStaging": STGTOKEN,  # Use STGTOKEN for staging
+    "UpdateDatabaseFromSpragueProd": SPRTOKEN,  # Use SPRTOKEN for Sprague
+}
+
+@dumpdb.route("/hy-run", methods=["POST"])
 def hy_run():
     """Handles Slack command to trigger Jenkins."""
     logging.debug(f"📩 Slack request received: {request.form}")
@@ -49,11 +57,13 @@ def hy_run():
     job_name = JOB_MAPPINGS.get(job_name.lower(), job_name)
     server = server.lower()
 
+    token_id = TOKEN_MAPPINGS.get(job_name)
+
     if server not in VALID_SERVERS:
         return jsonify({"response_type": "ephemeral", "text": f"❌ *Error:* Invalid server `{server}`."}), 200
 
     # Construct Jenkins job URL
-    jenkins_url = f"{BASE_URL}token={TOKEN}&job={job_name}&DESTINATION_APP=fp-{server}"
+    jenkins_url = f"{BASE_URL}token={token_id}&job={job_name}&DESTINATION_APP=fp-{server}"
     logging.info(f"🔹 Triggering Jenkins job: {jenkins_url}")
 
     try:

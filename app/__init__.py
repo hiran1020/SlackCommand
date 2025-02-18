@@ -1,6 +1,13 @@
-from flask import Flask 
+from flask import Flask
+from .dumpdb import dumpdb  # Import routes after the app is created
 
-app = Flask(__name__)
+def create_app():
+    app = Flask(__name__)
 
-from app import routes
-from app import dumpdb
+    # Initialize extensions, configuration, etc.
+    # app.config.from_object('config.Config')
+
+    # Register blueprints (your routes)
+    app.register_blueprint(dumpdb)
+
+    return app
